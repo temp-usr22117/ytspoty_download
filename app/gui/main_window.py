@@ -36,75 +36,196 @@ class DownloadWorker(QThread):
         try:
             self.progress.emit("🔍 Analyzing URL...")
             
-            if "spotify.com" in self.url:
-                # Spotify download
-                self.progress.emit("🎵 Fetching Spotify metadata...")
-                spotify = SpotifyService()
-                metadata_dict = spotify.get_track_metadata(self.url)
+            # Check if it's a playlist
+            is_spotify_playlist = "spotify.com" in self.url and "playlist" in self.url
+            is_youtube_playlist = ("youtube.com" in self.url or "youtu.be" in self.url) and "playlist" in self.url
+            
+            if is_spotify_playlist:
+                self.download_spotify_playlist()
+            elif is_youtube_playlist:
+                self.download_youtube_playlist()
+            elif "spotify.com" in self.url:
+                self.download_spotify_track()
+            else:
+                self.download_youtube_track()
                 
-                # Map Spotify field names to TrackMetadata field names
+        except Exception as e:
+            self.error.emit(str(e))
+    
+    def download_spotify_track(self):
+        """Download a single Spotify track."""
+        self.progress.emit("🎵 Fetching Spotify metadata...")
+        spotify = SpotifyService()
+        metadata_dict = spotify.get_track_metadata(self.url)
+        
+        mapped_metadata = {
+            'title': metadata_dict.get('name', 'Unknown'),
+            'artist': metadata_dict.get('artist', 'Unknown Artist'),
+            'album': metadata_dict.get('album', 'Unknown Album'),
+            'year': metadata_dict.get('year'),
+            'duration_ms': metadata_dict.get('duration') or 0,
+            'spotify_id': metadata_dict.get('track_id', ''),
+            'cover_art_url': metadata_dict.get('cover_url')
+        }
+        
+        metadata = TrackMetadata(**mapped_metadata)
+        
+        self.progress.emit(f"🔎 Searching YouTube for: {metadata.artist} - {metadata.title}")
+        youtube = YouTubeService()
+        youtube_url = youtube.search_track(metadata)
+        
+        if not youtube_url:
+            self.error.emit("Could not find track on YouTube")
+            return
+        
+        self.progress.emit("⬇️ Downloading audio...")
+        file_path = self.downloader.download(youtube_url, metadata)
+        
+        if file_path:
+            result = {
+                "track": metadata.title,
+                "artist": metadata.artist,
+                "file_path": str(file_path)
+            }
+            self.finished.emit(result)
+        else:
+            self.error.emit("Download failed - no file created")
+    
+    def download_youtube_track(self):
+        """Download a single YouTube track."""
+        self.progress.emit("⬇️ Downloading from YouTube...")
+        
+        try:
+            youtube = YouTubeService()
+            video_metadata = youtube.get_video_metadata(self.url)
+            
+            if video_metadata:
+                metadata = video_metadata
+                self.progress.emit(f"Found: {metadata.artist} - {metadata.title}")
+            else:
+                metadata = TrackMetadata(
+                    title="Unknown",
+                    artist="Unknown",
+                    album="Unknown",
+                    year=None,
+                    duration_ms=0,
+                    spotify_id='',
+                    cover_art_url=None
+                )
+        except Exception as e:
+            print(f"Could not get YouTube metadata: {e}")
+            metadata = TrackMetadata(
+                title="Unknown",
+                artist="Unknown",
+                album="Unknown",
+                year=None,
+                duration_ms=0,
+                spotify_id='',
+                cover_art_url=None
+            )
+        
+        file_path = self.downloader.download(self.url, metadata)
+        
+        if file_path:
+            result = {
+                "track": metadata.title,
+                "artist": metadata.artist,
+                "file_path": str(file_path)
+            }
+            self.finished.emit(result)
+        else:
+            self.error.emit("Download failed - no file created")
+    
+    def download_spotify_playlist(self):
+        """Download all tracks from a Spotify playlist."""
+        self.progress.emit("📋 Fetching playlist tracks...")
+        
+        spotify = SpotifyService()
+        tracks = spotify.get_playlist_tracks(self.url)
+        
+        total_tracks = len(tracks)
+        self.progress.emit(f"Found {total_tracks} tracks in playlist")
+        
+        successful = 0
+        failed = 0
+        
+        for i, track_dict in enumerate(tracks, 1):
+            try:
+                self.progress.emit(f"[{i}/{total_tracks}] {track_dict.get('artist')} - {track_dict.get('name')}")
+                
+                # Map to TrackMetadata
                 mapped_metadata = {
-                    'title': metadata_dict.get('name', 'Unknown'),
-                    'artist': metadata_dict.get('artist', 'Unknown Artist'),
-                    'album': metadata_dict.get('album', 'Unknown Album'),
-                    'year': metadata_dict.get('year'),
-                    'duration_ms': metadata_dict.get('duration') or 0,
-                    'spotify_id': metadata_dict.get('track_id', ''),
-                    'cover_art_url': metadata_dict.get('cover_url')
+                    'title': track_dict.get('name', 'Unknown'),
+                    'artist': track_dict.get('artist', 'Unknown Artist'),
+                    'album': track_dict.get('album', 'Unknown Album'),
+                    'year': track_dict.get('year'),
+                    'duration_ms': track_dict.get('duration') or 0,
+                    'spotify_id': track_dict.get('track_id', ''),
+                    'cover_art_url': track_dict.get('cover_url')
                 }
                 
                 metadata = TrackMetadata(**mapped_metadata)
                 
-                self.progress.emit(f"🔎 Searching YouTube for: {metadata.artist} - {metadata.title}")
+                # Search on YouTube
                 youtube = YouTubeService()
                 youtube_url = youtube.search_track(metadata)
                 
                 if not youtube_url:
-                    self.error.emit("Could not find track on YouTube")
-                    return
+                    self.progress.emit(f"  ❌ Could not find on YouTube")
+                    failed += 1
+                    continue
                 
-                self.progress.emit("⬇️ Downloading audio...")
+                # Download
                 file_path = self.downloader.download(youtube_url, metadata)
                 
                 if file_path:
-                    result = {
-                        "track": metadata.title,
-                        "artist": metadata.artist,
-                        "file_path": str(file_path)
-                    }
-                    self.finished.emit(result)
+                    self.progress.emit(f"  ✅ Downloaded: {metadata.artist} - {metadata.title}")
+                    successful += 1
                 else:
-                    self.error.emit("Download failed - no file created")
-                
-            else:
-                # Direct YouTube download
-                self.progress.emit("⬇️ Downloading from YouTube...")
-                
-                try:
-                    # Get video info first
-                    youtube = YouTubeService()
-                    video_metadata = youtube.get_video_metadata(self.url)
+                    self.progress.emit(f"  ❌ Download failed")
+                    failed += 1
                     
-                    if video_metadata:
-                        # Use extracted metadata
-                        metadata = video_metadata
-                        self.progress.emit(f"Found: {metadata.artist} - {metadata.title}")
-                    else:
-                        # Fallback: Create basic metadata
-                        metadata = TrackMetadata(
-                            title="Unknown",
-                            artist="Unknown",
-                            album="Unknown",
-                            year=None,
-                            duration_ms=0,
-                            spotify_id='',
-                            cover_art_url=None
-                        )
-                except Exception as e:
-                    print(f"Could not get YouTube metadata: {e}")
-                    # Fallback metadata
+            except Exception as e:
+                self.progress.emit(f"  ❌ Error: {str(e)}")
+                failed += 1
+        
+        # Final summary
+        result = {
+            "track": f"{successful} of {total_tracks} tracks",
+            "artist": "Playlist",
+            "file_path": str(self.downloader.output_dir)
+        }
+        self.progress.emit(f"\n✅ Playlist complete: {successful} successful, {failed} failed")
+        self.finished.emit(result)
+    
+    def download_youtube_playlist(self):
+        """Download all tracks from a YouTube playlist."""
+        self.progress.emit("📋 Fetching YouTube playlist...")
+        
+        youtube = YouTubeService()
+        videos = youtube.get_playlist_videos(self.url)
+        
+        total_videos = len(videos)
+        self.progress.emit(f"Found {total_videos} videos in playlist")
+        
+        successful = 0
+        failed = 0
+        
+        for i, video in enumerate(videos, 1):
+            try:
+                video_url = video.get('url', '')
+                video_title = video.get('title', 'Unknown')
+                
+                self.progress.emit(f"[{i}/{total_videos}] {video_title}")
+                
+                # Get metadata
+                video_metadata = youtube.get_video_metadata(video_url)
+                
+                if video_metadata:
+                    metadata = video_metadata
+                else:
                     metadata = TrackMetadata(
-                        title="Unknown",
+                        title=video_title,
                         artist="Unknown",
                         album="Unknown",
                         year=None,
@@ -113,20 +234,28 @@ class DownloadWorker(QThread):
                         cover_art_url=None
                     )
                 
-                file_path = self.downloader.download(self.url, metadata)
+                # Download
+                file_path = self.downloader.download(video_url, metadata)
                 
                 if file_path:
-                    result = {
-                        "track": metadata.title,
-                        "artist": metadata.artist,
-                        "file_path": str(file_path)
-                    }
-                    self.finished.emit(result)
+                    self.progress.emit(f"  ✅ Downloaded")
+                    successful += 1
                 else:
-                    self.error.emit("Download failed - no file created")
-            
-        except Exception as e:
-            self.error.emit(str(e))
+                    self.progress.emit(f"  ❌ Download failed")
+                    failed += 1
+                    
+            except Exception as e:
+                self.progress.emit(f"  ❌ Error: {str(e)}")
+                failed += 1
+        
+        # Final summary
+        result = {
+            "track": f"{successful} of {total_videos} videos",
+            "artist": "Playlist",
+            "file_path": str(self.downloader.output_dir)
+        }
+        self.progress.emit(f"\n✅ Playlist complete: {successful} successful, {failed} failed")
+        self.finished.emit(result)
 
 
 class MainWindow(QMainWindow):
@@ -288,6 +417,12 @@ class MainWindow(QMainWindow):
         if not ("spotify.com" in url or "youtube.com" in url or "youtu.be" in url):
             self.update_status("❌ Invalid URL. Please use Spotify or YouTube links.")
             return
+        
+        # Check if it's a playlist
+        is_playlist = ("playlist" in url.lower() or "/sets/" in url.lower())
+        
+        if is_playlist:
+            self.update_status("📋 Playlist detected - preparing to download all tracks...")
         
         # Disable UI during download
         self.download_btn.setEnabled(False)
