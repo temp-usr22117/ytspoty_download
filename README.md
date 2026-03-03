@@ -29,7 +29,7 @@ A desktop application to download music from Spotify and YouTube as high-quality
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/music-download.git
+git clone https://github.com/mclovin22117/music-download.git
 cd music-download
 
 # Install ffmpeg
@@ -58,7 +58,7 @@ python desktop_app.py
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/music-download.git
+git clone https://github.com/mclovin22117/music-download.git
 cd music-download
 
 # Configure Spotify API
