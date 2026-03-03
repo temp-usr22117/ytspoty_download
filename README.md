@@ -1,168 +1,166 @@
-# Music Downloader
-
-A simple web-based music downloader that fetches tracks from Spotify and YouTube URLs.
-
+#Music Downloader
+A desktop application to download music from Spotify and YouTube as high-quality MP3 files.
+---
+## Features
+✅ Download individual tracks from Spotify and YouTube
+✅ Download entire playlists (Spotify & YouTube)
+✅ Automatic metadata extraction (artist, title, album)
+✅ Clean filename format: Artist - Title.mp3
+✅ Modern dark-themed GUI
+✅ Background downloading with progress tracking
+---
 ## Prerequisites
+- Python 3.10+
+- ffmpeg (for audio conversion)
+- Spotify API credentials (free from Spotify Developer Dashboard)
+---
+## Installation
+### Method 1: Python Desktop App (Recommended)
 
-- **Docker** and **Docker Compose** installed on your system
-- Internet connection
+# Clone repository
+git clone https://github.com/yourusername/music-download.git
+cd music-download
 
-## Quick Start
+# Install ffmpeg
+sudo apt install ffmpeg  # Linux
+brew install ffmpeg      # macOS
 
-### 1. Start the Project
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
 
-Open a terminal in the project directory and run:
+# Install dependencies
+pip install -r requirements.txt
 
-```bash
-docker-compose up -d
-```
+# Configure Spotify API
+cp .env.example .env
+# Edit .env and add your credentials:
+# SPOTIFY_CLIENT_ID=your_client_id
+# SPOTIFY_CLIENT_SECRET=your_client_secret
 
-This will start all services in the background:
-- Redis (database)
-- FastAPI API server (port 8000)
-- 2 Celery workers (for background downloads)
+# Run application
+python desktop_app.py
+---
+### Method 2: Docker
+# Clone repository
+git clone https://github.com/yourusername/music-download.git
+cd music-download
 
-### 2. Access the Web UI
+# Configure Spotify API
+cp .env.example .env
+# Edit .env with your credentials
 
-Open your browser and go to:
-
-```
-http://localhost:8000
-```
-
-### 3. Download Music
-
-1. Paste a Spotify or YouTube URL in the input field
-2. Click the "Download" button
-3. Wait for the download to complete
-4. Downloaded files are saved in the `downloads/` folder
-
-**Supported URLs:**
-- Spotify tracks: `https://open.spotify.com/track/...`
-- YouTube videos: `https://www.youtube.com/watch?v=...`
-
-## Managing the Project
-
-### Stop the Project
-
-```bash
-docker-compose down
-```
-
-### python env
-source venv/bin/activate
-### to deactivate venv
-deactivate
-
-### Restart After Changes
-
-If you make code changes:
-
-```bash
-docker-compose restart api worker
-```
-
-### View Logs
-
-To see what's happening:
-
-```bash
-# View all logs
-docker-compose logs -f
-
-# View only API logs
-docker-compose logs -f api
-
-# View only worker logs
-docker-compose logs -f worker
-```
-
-### Check Container Status
-
-```bash
-docker-compose ps
-```
-
-All containers should show "Up" status.
-
-## Troubleshooting
-
-### Port 8000 Already in Use
-
-If you get an error that port 8000 is already in use:
-
-```bash
-# Stop the containers
-docker-compose down
-
-# Check what's using port 8000
-sudo lsof -i :8000
-
-# Kill the process or change the port in docker-compose.yml
-```
-
-### Downloads Failing
-
-1. Check the worker logs: `docker-compose logs worker`
-2. Make sure you have internet connection
-3. Verify the URL is correct and accessible
-
-### Containers Won't Start
-
-```bash
-# Clean up and restart
-docker-compose down
+# Start services
 docker-compose up -d
 
-# If still failing, rebuild
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-```
+# Access web interface
+# Open http://localhost:8000 in browser
+---
+### Usage
+- Desktop App (PyQt6)
+1. Launch: python desktop_app.py
+2. Paste Spotify or YouTube URL
+3. Click "Download"
+4. Files saved to: ~/Music/Music Downloader/
 
-## Project Structure
+- Docker (Web Interface)
+1. Navigate to http://localhost:8000
+2. Submit download URL via API
+3. Files saved in Docker volume
+---
+### Supported URLs
+# Spotify
+https://open.spotify.com/track/...       # Single track
+https://open.spotify.com/playlist/...    # Playlist
 
-```
+# YouTube
+https://youtube.com/watch?v=...          # Single video
+https://youtube.com/playlist?list=...    # Playlist
+---
+### Tech Stack
+Tech Stack
+Component	|   Technology
+Language	|   Python 3.12
+Desktop GUI	    |   PyQt6
+Web API	|   FastAPI (Docker only)
+Task Queue	|   Celery + Redis (Docker only)
+Spotify API	|   spotipy
+YouTube	|   yt-dlp
+Audio Processing	|   ffmpeg
+Data Validation	|   Pydantic
+---
+### Project Structure
 music-download/
 ├── app/
-│   ├── main.py              # FastAPI application
-│   ├── api/endpoints/       # API routes
-│   ├── services/            # Spotify & YouTube services
-│   ├── workers/             # Celery tasks
-│   └── utils/               # Helper functions
-├── downloads/               # Downloaded music files
-├── docker-compose.yml       # Docker configuration
-├── index.html               # Web UI
-└── README.md               # This file
-```
-
-## Features
-
-- ✅ Download from Spotify (web scraping, no API key needed)
-- ✅ Download from YouTube (yt-dlp)
-- ✅ Automatic metadata tagging (artist, title, album)
-- ✅ Web-based UI
-- ✅ Background task processing
-- ✅ MP3 format output
-
-## Tech Stack
-
-- **Backend**: FastAPI + Python
-- **Task Queue**: Celery + Redis
-- **Downloads**: yt-dlp
-- **Scraping**: BeautifulSoup4
-- **Frontend**: Vanilla HTML/CSS/JavaScript
-- **Deployment**: Docker Compose
-
-## Legal Notice
-
-**For personal use only.** Respect copyright laws and artists' rights. This tool is intended for:
-- Personal backups of purchased music
-- Downloading Creative Commons content
-- Educational purposes
-
-Do NOT use for piracy or commercial distribution.
-
+│   ├── gui/
+│   │   └── main_window.py       # PyQt6 desktop app
+│   ├── services/
+│   │   ├── spotify_service.py   # Spotify API client
+│   │   └── youtube_service.py   # YouTube downloader
+│   ├── utils/
+│   │   └── downloader.py        # yt-dlp wrapper
+│   └── models.py                # Data models
+├── desktop_app.py               # Desktop launcher
+├── main.py                      # FastAPI server (Docker)
+├── docker-compose.yml           # Docker setup
+├── requirements.txt             # Python dependencies
+└── .env                         # API credentials
 ---
+### Getting Spotify API Credentials
+1. Go to Spotify Developer Dashboard
+2. Log in and click "Create app"
+3. Fill in app details:
+4. App name: Music Downloader
+5. Redirect URI: http://localhost:8888/callback
+6. Copy Client ID and Client Secret
+7. Paste into .env file
+---
+### Configuration
+Create .env file in project root:
+SPOTIFY_CLIENT_ID=your_client_id_here
+SPOTIFY_CLIENT_SECRET=your_client_secret_here
+---
+### Dependencies
+# GUI (Desktop App)
+PyQt6==6.6.1
 
-**Need help?** Check the logs with `docker-compose logs -f` to see what's happening.
+# Spotify Integration
+spotipy==2.23.0
+python-dotenv==1.0.0
+
+# YouTube & Download
+yt-dlp==2023.12.30
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# Web API (Docker only)
+fastapi==0.104.1
+celery==5.3.4
+redis==5.0.1
+
+# Data Validation
+pydantic==2.5.0
+---
+### Troubleshooting
+FFmpeg not found:
+# Install ffmpeg
+sudo apt install ffmpeg  # Linux
+brew install ffmpeg      # macOS
+
+### Spotify API errors:
+- Verify credentials in .env file
+- Check credentials at Spotify Dashboard
+
+### PyQt6 installation issues:
+# Use virtual environment
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install PyQt6
+---
+### Licence
+Creative Commons Attribution-NonCommercial 4.0 International Public License (see LICENCE file)
+---
+### Contributing
+Pull requests welcome! Please ensure code follows existing style.
