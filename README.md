@@ -4,6 +4,18 @@ A desktop application to download music from Spotify and YouTube as high-quality
 
 ---
 
+## ⚖️ Legal Disclaimer
+
+This software is provided for **educational and archival purposes only**. 
+
+By using this tool, you acknowledge and agree to the following:
+
+* **Terms of Service:** You are responsible for complying with the Terms of Service of Spotify, YouTube, and any other third-party services accessed by this tool. Using automated tools to download content may violate their policies and could result in account suspension.
+* **Copyright & Licensing:** You should only download content for which you have the legal right to do so (e.g., your own content, public domain, or content for which you have obtained permission). The author does not condone or encourage the illegal duplication or distribution of copyrighted material.
+* **No Warranty:** This software is provided "as is" without any warranty of any kind. The author assumes no liability for any misuse of this tool, data loss, or legal consequences arising from its use.
+* **Personal Use:** This tool is intended strictly for personal, non-commercial use.
+---
+
 ## Features
 
 - ✅ Download individual tracks from Spotify and YouTube
