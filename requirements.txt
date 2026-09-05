@@ -23,5 +23,5 @@ requests==2.31.0
 
 # Environment variables
 python-dotenv==1.2.2
-spotipy==2.23.0
+spotipy==2.25.2
 python-dotenv==1.2.2
